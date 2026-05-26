@@ -143,5 +143,5 @@ difficulty_score = (normalized_error × 0.4)
 
 ## 과목
 
-소프트웨어공학 (2025년 1학기)
+소프트웨어공학 (2026년 1학기)
 
