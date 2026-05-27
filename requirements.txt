@@ -1,0 +1,8 @@
+PyQt5
+watchdog
+radon
+pandas
+numpy
+matplotlib
+hypothesis
+pytest
