@@ -5,13 +5,12 @@ analysis_queue.py: 분석 파이프라인 및 백그라운드 처리
 import threading
 import logging
 from typing import Callable, Optional
-from .data_models import AnalysisSession
+from ..models.data_models import AnalysisSession
 from ..models.code_executor import CodeExecutor
 from ..models.ast_analyzer import ASTAnalyzer
 from ..models.error_analyzer import ErrorAnalyzer
 from ..models.difficulty_estimator import DifficultyEstimator
 from ..models.database_manager import DatabaseManager
-
 
 # ──────────────────────────────────────────────
 # 로그 설정
