@@ -20,11 +20,11 @@ WEIGHTS = {
 }
 
 LABELS = {
-    "very_hard": "매우 어려움",
-    "hard":      "평소보다 어려운 코드",
-    "normal":    "보통",
-    "easy":      "쉬움",
-    "pending":   "데이터 수집 중",
+    "very_hard": "very hard",
+    "hard":      "harder than usual",
+    "normal":    "average",
+    "easy":      "easy",
+    "pending":   "collecting data",
 }
 
 

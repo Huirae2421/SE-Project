@@ -69,11 +69,11 @@ class DatabaseManager:
                 function_length  REAL    DEFAULT 0.0,
                 clap_score       REAL    DEFAULT 0.0,
                 mccabe_score     REAL    DEFAULT 0.0,
-                mccabe_label     TEXT    DEFAULT '단순',
+                mccabe_label     TEXT    DEFAULT 'simple',
                 feedback_message TEXT    DEFAULT '',
                 error_group      TEXT    DEFAULT '',
                 difficulty_score REAL    DEFAULT 0.0,
-                difficulty_label TEXT    DEFAULT '데이터 수집 중',
+                difficulty_label TEXT    DEFAULT 'collecting data',
                 is_relative      INTEGER DEFAULT 0
             )
         """)

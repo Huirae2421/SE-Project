@@ -12,12 +12,12 @@ from .data_models import ExecutionResult, ErrorRecord
 # ──────────────────────────────────────────────
 
 ERROR_GROUPS = {
-    "NameError":        "변수 미정의 그룹",
-    "IndentationError": "들여쓰기 오류 그룹",
-    "TypeError":        "타입 불일치 그룹",
-    "SyntaxError":      "문법 오류 그룹",
-    "IndexError":       "인덱스 오류 그룹",
-    "ValueError":       "값 오류 그룹",
+    "NameError":        "undefined variable group",
+    "IndentationError": "indentation error group",
+    "TypeError":        "type mismatch group",
+    "SyntaxError":      "syntax error group",
+    "IndexError":       "index error group",
+    "ValueError":       "value error group",
 }
 
 
@@ -31,7 +31,7 @@ class ErrorAnalyzer:
         if result.success or result.error_type is None:
             return None
 
-        error_group = ERROR_GROUPS.get(result.error_type, "기타 오류 그룹")
+        error_group = ERROR_GROUPS.get(result.error_type, "other error group")
 
         return ErrorRecord(
             error_type=result.error_type,
@@ -58,14 +58,14 @@ class ErrorAnalyzer:
         summary: Dict[str, int] = {}
 
         for record in error_records:
-            group = record.error_group or ERROR_GROUPS.get(record.error_type, "기타 오류 그룹")
+            group = record.error_group or ERROR_GROUPS.get(record.error_type, "other error group")
             summary[group] = summary.get(group, 0) + 1
 
         return dict(sorted(summary.items(), key=lambda x: x[1], reverse=True))
 
     def get_most_frequent(self, error_records: List[ErrorRecord]) -> str:
         if not error_records:
-            return "없음"
+            return "none"
 
         summary = self.get_error_summary(error_records)
         return max(summary, key=lambda x: summary[x])

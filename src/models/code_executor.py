@@ -24,12 +24,12 @@ SUPPORTED_ERRORS = frozenset({
 })
 
 ERROR_GROUPS = {
-    "NameError":       "변수 미정의 그룹",
-    "IndentationError": "들여쓰기 오류 그룹",
-    "TypeError":       "타입 불일치 그룹",
-    "SyntaxError":     "문법 오류 그룹",
-    "IndexError":      "인덱스 오류 그룹",
-    "ValueError":      "값 오류 그룹",
+    "NameError":       "undefined variable group",
+    "IndentationError": "indentation error group",
+    "TypeError":       "type mismatch group",
+    "SyntaxError":     "syntax error group",
+    "IndexError":      "index error group",
+    "ValueError":      "value error group",
 }
 
 
@@ -72,9 +72,9 @@ class CodeExecutor:
             elapsed = time.perf_counter() - start
             return ExecutionResult(
                 file_path=file_path,
-                stderr="TimeoutExpired: 실행 시간 초과",
+                stderr="TimeoutExpired: execution time limit exceeded",
                 error_type="TimeoutExpired",
-                error_message="실행 시간 초과",
+                error_message="execution time limit exceeded",
                 elapsed_seconds=round(elapsed, 4),
                 timed_out=True,
                 success=False
@@ -128,4 +128,4 @@ class CodeExecutor:
     # ──────────────────────────────────────────────
 
     def get_error_group(self, error_type: str) -> str:
-        return ERROR_GROUPS.get(error_type, "기타 오류 그룹")
+        return ERROR_GROUPS.get(error_type, "other error group")
