@@ -32,7 +32,10 @@ def build_app() -> tuple[QApplication, MainWindow]:
     error_analyzer        = ErrorAnalyzer()
     difficulty_estimator  = DifficultyEstimator()
     visualization_engine  = VisualizationEngine()
-    file_watcher          = FileWatcher(on_file_changed=lambda path: None)
+    file_watcher          = FileWatcher(
+        on_file_changed=lambda path: None,
+        on_folder_removed=lambda path: None,
+    )
 
     analysis_queue = AnalysisQueue(
         code_executor=code_executor,
@@ -52,8 +55,11 @@ def build_app() -> tuple[QApplication, MainWindow]:
 
     window = MainWindow(controller=controller)
 
-    file_watcher.on_file_changed = controller.on_file_changed
-    analysis_queue.on_complete   = window.on_analysis_completed
+    file_watcher.on_file_changed   = controller.on_file_changed
+    file_watcher.on_folder_removed = window.on_folder_removed
+    analysis_queue.on_complete     = window.on_analysis_completed
+    analysis_queue.on_start        = window.on_analysis_started
+    analysis_queue.on_save_failed  = window.on_save_failed
 
     return app, window
 

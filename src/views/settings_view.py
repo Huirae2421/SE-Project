@@ -8,10 +8,12 @@ from PyQt5.QtWidgets import (
     QListWidget, QListWidgetItem, QFrame,
     QFileDialog, QMessageBox
 )
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
 from ..controllers.app_controller import AppController
+from . import styles
+from .i18n import tr, LANG_KO, LANG_EN
 
 
 # ──────────────────────────────────────────────
@@ -29,7 +31,8 @@ FONT_BUTTON = QFont("맑은 고딕", 10)
 
 class SettingsView(QWidget):
 
-    navigate_to_dashboard = pyqtSignal()
+    # 언어가 변경되면 새 언어 코드를 담아 발신한다
+    language_changed = pyqtSignal(str)
 
     def __init__(self, controller: AppController):
         super().__init__()
@@ -46,10 +49,10 @@ class SettingsView(QWidget):
         layout.setSpacing(16)
 
         layout.addLayout(self._build_header())
+        layout.addWidget(self._build_language_section())
         layout.addWidget(self._build_folder_section())
         layout.addWidget(self._build_reset_section())
         layout.addStretch()
-        layout.addLayout(self._build_nav_buttons())
 
     # ──────────────────────────────────────────────
     # 헤더
@@ -58,12 +61,45 @@ class SettingsView(QWidget):
     def _build_header(self) -> QHBoxLayout:
         layout = QHBoxLayout()
 
-        title = QLabel("설정")
-        title.setFont(FONT_TITLE)
+        self.title_label = QLabel(tr("settings.title"))
+        self.title_label.setFont(FONT_TITLE)
 
-        layout.addWidget(title)
+        layout.addWidget(self.title_label)
         layout.addStretch()
         return layout
+
+    # ──────────────────────────────────────────────
+    # 언어 설정 섹션
+    # ──────────────────────────────────────────────
+
+    def _build_language_section(self) -> QFrame:
+        frame = QFrame()
+        frame.setFrameShape(QFrame.StyledPanel)
+        frame.setStyleSheet(styles.panel_style())
+
+        layout = QVBoxLayout(frame)
+        layout.setSpacing(8)
+
+        self.lang_header = QLabel(tr("settings.lang.header"))
+        self.lang_header.setFont(FONT_LABEL)
+        self.lang_header.setStyleSheet("font-weight: bold; color: #495057;")
+        layout.addWidget(self.lang_header)
+
+        buttons = QHBoxLayout()
+        self.btn_ko = QPushButton("한국어")
+        self.btn_en = QPushButton("English")
+        for btn, lang in [(self.btn_ko, LANG_KO), (self.btn_en, LANG_EN)]:
+            btn.setFont(FONT_BUTTON)
+            btn.setFixedHeight(34)
+            btn.setCheckable(True)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda _c, lng=lang: self._on_language_clicked(lng))
+            buttons.addWidget(btn)
+        buttons.addStretch()
+        layout.addLayout(buttons)
+
+        self._refresh_lang_buttons()
+        return frame
 
     # ──────────────────────────────────────────────
     # 폴더 관리 섹션
@@ -84,32 +120,32 @@ class SettingsView(QWidget):
         layout = QVBoxLayout(frame)
         layout.setSpacing(10)
 
-        header = QLabel("감시 폴더 관리")
-        header.setFont(FONT_LABEL)
-        header.setStyleSheet("font-weight: bold; color: #495057;")
-        layout.addWidget(header)
+        self.folder_header = QLabel(tr("settings.folder.header"))
+        self.folder_header.setFont(FONT_LABEL)
+        self.folder_header.setStyleSheet("font-weight: bold; color: #495057;")
+        layout.addWidget(self.folder_header)
 
         input_layout = QHBoxLayout()
 
         self.folder_input = QLineEdit()
         self.folder_input.setFont(FONT_LABEL)
-        self.folder_input.setPlaceholderText("폴더 경로를 입력하거나 선택하세요")
+        self.folder_input.setPlaceholderText(tr("settings.folder.placeholder"))
         self.folder_input.setFixedHeight(34)
 
-        btn_browse = QPushButton("폴더 선택")
-        btn_browse.setFont(FONT_BUTTON)
-        btn_browse.setFixedHeight(34)
-        btn_browse.clicked.connect(self._browse_folder)
+        self.btn_browse = QPushButton(tr("settings.folder.browse"))
+        self.btn_browse.setFont(FONT_BUTTON)
+        self.btn_browse.setFixedHeight(34)
+        self.btn_browse.clicked.connect(self._browse_folder)
 
-        btn_add = QPushButton("등록")
-        btn_add.setFont(FONT_BUTTON)
-        btn_add.setFixedHeight(34)
-        btn_add.setStyleSheet("background-color: #4A90D9; color: white; border-radius: 4px;")
-        btn_add.clicked.connect(self._add_folder)
+        self.btn_add = QPushButton(tr("settings.folder.add"))
+        self.btn_add.setFont(FONT_BUTTON)
+        self.btn_add.setFixedHeight(34)
+        self.btn_add.setStyleSheet("background-color: #4A90D9; color: white; border-radius: 4px;")
+        self.btn_add.clicked.connect(self._add_folder)
 
         input_layout.addWidget(self.folder_input)
-        input_layout.addWidget(btn_browse)
-        input_layout.addWidget(btn_add)
+        input_layout.addWidget(self.btn_browse)
+        input_layout.addWidget(self.btn_add)
         layout.addLayout(input_layout)
 
         self.folder_list = QListWidget()
@@ -117,11 +153,11 @@ class SettingsView(QWidget):
         self.folder_list.setFixedHeight(150)
         layout.addWidget(self.folder_list)
 
-        btn_remove = QPushButton("선택한 폴더 제거")
-        btn_remove.setFont(FONT_BUTTON)
-        btn_remove.setFixedHeight(34)
-        btn_remove.clicked.connect(self._remove_folder)
-        layout.addWidget(btn_remove)
+        self.btn_remove = QPushButton(tr("settings.folder.remove"))
+        self.btn_remove.setFont(FONT_BUTTON)
+        self.btn_remove.setFixedHeight(34)
+        self.btn_remove.clicked.connect(self._remove_folder)
+        layout.addWidget(self.btn_remove)
 
         return frame
 
@@ -144,16 +180,19 @@ class SettingsView(QWidget):
         layout = QVBoxLayout(frame)
         layout.setSpacing(8)
 
-        header = QLabel("데이터 초기화")
-        header.setFont(FONT_LABEL)
-        header.setStyleSheet("font-weight: bold; color: #721c24;")
+        self.reset_header = QLabel(tr("settings.reset.header"))
+        self.reset_header.setFont(FONT_LABEL)
+        self.reset_header.setStyleSheet("font-weight: bold; color: #721c24;")
+        header = self.reset_header
 
-        desc = QLabel("모든 학습 데이터와 오류 로그를 삭제합니다. 이 작업은 되돌릴 수 없습니다.")
-        desc.setFont(FONT_LABEL)
-        desc.setWordWrap(True)
-        desc.setStyleSheet("color: #721c24;")
+        self.reset_desc = QLabel(tr("settings.reset.desc"))
+        self.reset_desc.setFont(FONT_LABEL)
+        self.reset_desc.setWordWrap(True)
+        self.reset_desc.setStyleSheet("color: #721c24;")
+        desc = self.reset_desc
 
-        btn_reset = QPushButton("전체 데이터 초기화")
+        self.btn_reset = QPushButton(tr("settings.reset.button"))
+        btn_reset = self.btn_reset
         btn_reset.setFont(FONT_BUTTON)
         btn_reset.setFixedHeight(34)
         btn_reset.setStyleSheet("""
@@ -175,22 +214,6 @@ class SettingsView(QWidget):
         return frame
 
     # ──────────────────────────────────────────────
-    # 하단 내비게이션 버튼
-    # ──────────────────────────────────────────────
-
-    def _build_nav_buttons(self) -> QHBoxLayout:
-        layout = QHBoxLayout()
-
-        btn_back = QPushButton("← 대시보드로")
-        btn_back.setFont(FONT_BUTTON)
-        btn_back.setFixedHeight(36)
-        btn_back.clicked.connect(self.navigate_to_dashboard.emit)
-
-        layout.addWidget(btn_back)
-        layout.addStretch()
-        return layout
-
-    # ──────────────────────────────────────────────
     # 설정 로드
     # ──────────────────────────────────────────────
 
@@ -199,6 +222,37 @@ class SettingsView(QWidget):
         folders = self.controller.file_watcher.get_watching_folders()
         for folder in folders:
             self.folder_list.addItem(QListWidgetItem(folder))
+        self._refresh_lang_buttons()
+
+    # ──────────────────────────────────────────────
+    # 언어 선택
+    # ──────────────────────────────────────────────
+
+    def _on_language_clicked(self, lang: str) -> None:
+        self.controller.set_language(lang)
+        self._refresh_lang_buttons()
+        self.language_changed.emit(lang)
+
+    def _refresh_lang_buttons(self) -> None:
+        current = self.controller.get_language(LANG_KO)
+        self.btn_ko.setChecked(current == LANG_KO)
+        self.btn_en.setChecked(current == LANG_EN)
+
+    # ──────────────────────────────────────────────
+    # 언어 변경 시 텍스트 갱신
+    # ──────────────────────────────────────────────
+
+    def retranslate_ui(self) -> None:
+        self.title_label.setText(tr("settings.title"))
+        self.lang_header.setText(tr("settings.lang.header"))
+        self.folder_header.setText(tr("settings.folder.header"))
+        self.folder_input.setPlaceholderText(tr("settings.folder.placeholder"))
+        self.btn_browse.setText(tr("settings.folder.browse"))
+        self.btn_add.setText(tr("settings.folder.add"))
+        self.btn_remove.setText(tr("settings.folder.remove"))
+        self.reset_header.setText(tr("settings.reset.header"))
+        self.reset_desc.setText(tr("settings.reset.desc"))
+        self.btn_reset.setText(tr("settings.reset.button"))
 
     # ──────────────────────────────────────────────
     # 폴더 추가 / 제거

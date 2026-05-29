@@ -3,19 +3,39 @@ database_manager.py: SQLite 데이터베이스 연동 및 데이터 관리
 """
 
 import sqlite3
-import json
+import threading
+import functools
 from typing import List, Optional
 from .data_models import (
     AnalysisSession, HistoricalSession, ExecutionResult,
     ASTResult, ClapComponents, ErrorRecord, DifficultyScore
 )
+from ..app_paths import db_path
 
 
 # ──────────────────────────────────────────────
 # 상수 정의
 # ──────────────────────────────────────────────
 
-DB_PATH = "clap.db"
+# 사용자 홈(~/.clap) 아래에 DB를 둔다 (exe 실행 위치와 무관하게 동작)
+DB_PATH = db_path()
+
+
+# ──────────────────────────────────────────────
+# 스레드 동기화 데코레이터
+# ──────────────────────────────────────────────
+
+def _synchronized(method):
+    """DB 접근 메서드를 락으로 직렬화한다.
+
+    분석은 백그라운드 스레드에서, UI 조회는 메인 스레드에서 일어나므로
+    하나의 SQLite 연결을 여러 스레드가 안전하게 공유하도록 보호한다.
+    """
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return wrapper
 
 
 # ──────────────────────────────────────────────
@@ -27,6 +47,7 @@ class DatabaseManager:
     def __init__(self, db_path: str = DB_PATH):
         self.db_path = db_path
         self._conn: Optional[sqlite3.Connection] = None
+        self._lock = threading.RLock()
         self.initialize_schema()
 
     def __enter__(self):
@@ -37,7 +58,9 @@ class DatabaseManager:
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path)
+            # check_same_thread=False: 백그라운드 분석 스레드에서도 사용 가능
+            # (실제 동시 접근은 _synchronized 락으로 직렬화)
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
             self._conn.row_factory = sqlite3.Row
         return self._conn
 
@@ -45,6 +68,7 @@ class DatabaseManager:
     # 스키마 초기화
     # ──────────────────────────────────────────────
 
+    @_synchronized
     def initialize_schema(self) -> None:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -87,6 +111,13 @@ class DatabaseManager:
         """)
 
         cursor.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+
+        cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_sessions_timestamp
             ON sessions (timestamp)
         """)
@@ -102,6 +133,7 @@ class DatabaseManager:
     # 세션 저장
     # ──────────────────────────────────────────────
 
+    @_synchronized
     def save_session(self, session: AnalysisSession) -> Optional[int]:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -158,6 +190,7 @@ class DatabaseManager:
     # 세션 조회
     # ──────────────────────────────────────────────
 
+    @_synchronized
     def get_sessions(self, limit: int = 100) -> List[AnalysisSession]:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -230,6 +263,7 @@ class DatabaseManager:
 
         return sessions
 
+    @_synchronized
     def get_historical_sessions(self, limit: int = 100) -> List[HistoricalSession]:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -263,6 +297,7 @@ class DatabaseManager:
     # 오류 통계
     # ──────────────────────────────────────────────
 
+    @_synchronized
     def get_error_counts(self) -> dict:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -281,6 +316,7 @@ class DatabaseManager:
     # 폴더 설정 관리
     # ──────────────────────────────────────────────
 
+    @_synchronized
     def get_folder_configs(self) -> List[str]:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -288,6 +324,7 @@ class DatabaseManager:
         cursor.execute("SELECT folder_path FROM folder_configs ORDER BY created_at ASC")
         return [row["folder_path"] for row in cursor.fetchall()]
 
+    @_synchronized
     def save_folder_config(self, folder_path: str) -> bool:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -304,6 +341,7 @@ class DatabaseManager:
             conn.rollback()
             return False
 
+    @_synchronized
     def delete_folder_config(self, folder_path: str) -> bool:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -320,9 +358,37 @@ class DatabaseManager:
             return False
 
     # ──────────────────────────────────────────────
+    # 앱 설정 (key-value)
+    # ──────────────────────────────────────────────
+
+    @_synchronized
+    def get_setting(self, key: str, default: str = "") -> str:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM app_settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        return row["value"] if row else default
+
+    @_synchronized
+    def set_setting(self, key: str, value: str) -> bool:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO app_settings (key, value) VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """, (key, value))
+            conn.commit()
+            return True
+        except Exception:
+            conn.rollback()
+            return False
+
+    # ──────────────────────────────────────────────
     # 데이터 초기화 및 종료
     # ──────────────────────────────────────────────
 
+    @_synchronized
     def reset_all(self) -> bool:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -336,6 +402,7 @@ class DatabaseManager:
             conn.rollback()
             return False
 
+    @_synchronized
     def close(self) -> None:
         if self._conn is not None:
             self._conn.close()

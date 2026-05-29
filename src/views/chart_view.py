@@ -4,9 +4,8 @@ chart_view.py: 학습 데이터 시각화 화면
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QTabWidget, QFrame
+    QLabel, QTabWidget
 )
-from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import QFont
 
 import matplotlib
@@ -14,10 +13,10 @@ matplotlib.use("Qt5Agg")
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
 
 from ..controllers.app_controller import AppController
 from ..models.data_models import ChartData
+from .i18n import tr
 
 
 # ──────────────────────────────────────────────
@@ -34,7 +33,6 @@ plt.rcParams["axes.unicode_minus"] = False
 
 FONT_TITLE  = QFont("맑은 고딕", 18, QFont.Bold)
 FONT_LABEL  = QFont("맑은 고딕", 11)
-FONT_BUTTON = QFont("맑은 고딕", 10)
 
 COLOR_PRIMARY = "#4A90D9"
 COLOR_AVERAGE = "#E74C3C"
@@ -62,8 +60,6 @@ class ChartCanvas(FigureCanvas):
 
 class ChartView(QWidget):
 
-    navigate_to_dashboard = pyqtSignal()
-
     def __init__(self, controller: AppController):
         super().__init__()
         self.controller = controller
@@ -85,7 +81,6 @@ class ChartView(QWidget):
         layout.addWidget(self.tabs)
 
         self._build_tabs()
-        layout.addLayout(self._build_nav_buttons())
 
     # ──────────────────────────────────────────────
     # 헤더
@@ -94,10 +89,10 @@ class ChartView(QWidget):
     def _build_header(self) -> QHBoxLayout:
         layout = QHBoxLayout()
 
-        title = QLabel("학습 데이터 시각화")
-        title.setFont(FONT_TITLE)
+        self.title_label = QLabel(tr("chart.title"))
+        self.title_label.setFont(FONT_TITLE)
 
-        layout.addWidget(title)
+        layout.addWidget(self.title_label)
         layout.addStretch()
         return layout
 
@@ -113,28 +108,25 @@ class ChartView(QWidget):
         self.canvas_difficulty_area = ChartCanvas()
         self.canvas_error_pie       = ChartCanvas()
 
-        self.tabs.addTab(self.canvas_error_bar,       "오류 발생 횟수")
-        self.tabs.addTab(self.canvas_activity_line,   "날짜별 학습 활동")
-        self.tabs.addTab(self.canvas_mccabe_line,     "McCabe 복잡도")
-        self.tabs.addTab(self.canvas_clap_line,       "CLAP 복잡도")
-        self.tabs.addTab(self.canvas_difficulty_area, "난이도 변화")
-        self.tabs.addTab(self.canvas_error_pie,       "오류 유형 분포")
+        self.tabs.addTab(self.canvas_error_bar,       tr("chart.tab.errorbar"))
+        self.tabs.addTab(self.canvas_activity_line,   tr("chart.tab.activity"))
+        self.tabs.addTab(self.canvas_mccabe_line,     tr("chart.tab.mccabe"))
+        self.tabs.addTab(self.canvas_clap_line,       tr("chart.tab.clap"))
+        self.tabs.addTab(self.canvas_difficulty_area, tr("chart.tab.difficulty"))
+        self.tabs.addTab(self.canvas_error_pie,       tr("chart.tab.errorpie"))
 
     # ──────────────────────────────────────────────
-    # 하단 내비게이션 버튼
+    # 언어 변경 시 텍스트 갱신
     # ──────────────────────────────────────────────
 
-    def _build_nav_buttons(self) -> QHBoxLayout:
-        layout = QHBoxLayout()
-
-        btn_back = QPushButton("← 대시보드로")
-        btn_back.setFont(FONT_BUTTON)
-        btn_back.setFixedHeight(36)
-        btn_back.clicked.connect(self.navigate_to_dashboard.emit)
-
-        layout.addWidget(btn_back)
-        layout.addStretch()
-        return layout
+    def retranslate_ui(self) -> None:
+        self.title_label.setText(tr("chart.title"))
+        tab_keys = [
+            "chart.tab.errorbar", "chart.tab.activity", "chart.tab.mccabe",
+            "chart.tab.clap", "chart.tab.difficulty", "chart.tab.errorpie",
+        ]
+        for i, key in enumerate(tab_keys):
+            self.tabs.setTabText(i, tr(key))
 
     # ──────────────────────────────────────────────
     # 차트 로드
@@ -193,6 +185,9 @@ class ChartView(QWidget):
             ax.set_xlabel("오류 유형")
             ax.set_ylabel("발생 횟수")
             ax.bar_label(bars, padding=3)
+            ax.tick_params(axis="x", rotation=30, labelsize=8)
+            for label in ax.get_xticklabels():
+                label.set_ha("right")
 
         canvas.draw()
 

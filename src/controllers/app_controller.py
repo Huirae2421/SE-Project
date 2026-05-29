@@ -4,9 +4,11 @@ app_controller.py: 애플리케이션 전체 흐름 제어
 
 import os
 import logging
-from typing import Optional
+from typing import List, Optional
 from ..models.database_manager import DatabaseManager
 from ..models.visualization_engine import VisualizationEngine
+from ..models.report_generator import ReportGenerator, ReportRenderer, StudentReport
+from ..models.error_guide import ErrorGuideProvider
 from ..models.data_models import DashboardData, ChartData, SummaryStats
 from .analysis_queue import AnalysisQueue
 from .file_watcher import FileWatcher
@@ -29,6 +31,9 @@ class AppController:
         self.analysis_queue = analysis_queue
         self.file_watcher = file_watcher
         self.visualization_engine = visualization_engine
+        self.report_generator = ReportGenerator()
+        self.report_renderer = ReportRenderer()
+        self.guide_provider = ErrorGuideProvider()
         self._restore_folders()
 
     # ──────────────────────────────────────────────
@@ -119,6 +124,61 @@ class AppController:
     def get_chart_data(self) -> ChartData:
         sessions = self.db_manager.get_sessions(limit=100)
         return self.visualization_engine.build_chart_data(sessions)
+
+    # ──────────────────────────────────────────────
+    # 학습 리포트 조회
+    # ──────────────────────────────────────────────
+
+    def get_learning_report(self) -> StudentReport:
+        sessions = self.db_manager.get_sessions(limit=100)
+        historical = self.db_manager.get_historical_sessions(limit=100)
+        return self.report_generator.generate(sessions, historical)
+
+    def get_report_html(self) -> str:
+        report = self.get_learning_report()
+        return self.report_renderer.render_html(report)
+
+    def save_report_html(self, file_path: str) -> bool:
+        try:
+            html = self.get_report_html()
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(html)
+            return True
+        except Exception:
+            logging.exception("리포트 저장에 실패했습니다.")
+            return False
+
+    # ──────────────────────────────────────────────
+    # 오류 도우미
+    # ──────────────────────────────────────────────
+
+    def get_latest_error(self) -> Optional[dict]:
+        """가장 최근 세션에서 발생한 오류 정보를 반환한다 (없으면 None)."""
+        sessions = self.db_manager.get_sessions(limit=1)
+        if not sessions:
+            return None
+        latest = sessions[0]
+        if latest.error_record is None:
+            return None
+        return {
+            "error_type": latest.error_record.error_type,
+            "message": latest.error_record.error_message,
+            "file_path": latest.file_path,
+        }
+
+    def get_supported_errors(self) -> List[str]:
+        """가이드가 준비된 오류 유형 목록."""
+        return self.guide_provider.list_supported_errors()
+
+    # ──────────────────────────────────────────────
+    # 언어 설정
+    # ──────────────────────────────────────────────
+
+    def get_language(self, default: str = "ko") -> str:
+        return self.db_manager.get_setting("language", default)
+
+    def set_language(self, lang: str) -> bool:
+        return self.db_manager.set_setting("language", lang)
 
     # ──────────────────────────────────────────────
     # 데이터 초기화

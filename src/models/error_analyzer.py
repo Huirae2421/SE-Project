@@ -12,12 +12,18 @@ from .data_models import ExecutionResult, ErrorRecord
 # ──────────────────────────────────────────────
 
 ERROR_GROUPS = {
-    "NameError":        "undefined variable group",
-    "IndentationError": "indentation error group",
-    "TypeError":        "type mismatch group",
-    "SyntaxError":      "syntax error group",
-    "IndexError":       "index error group",
-    "ValueError":       "value error group",
+    "NameError":          "undefined variable group",
+    "IndentationError":   "indentation error group",
+    "TypeError":          "type mismatch group",
+    "SyntaxError":        "syntax error group",
+    "IndexError":         "index error group",
+    "ValueError":         "value error group",
+    "AttributeError":     "attribute error group",
+    "KeyError":           "key error group",
+    "ZeroDivisionError":  "zero division group",
+    "ModuleNotFoundError": "import error group",
+    "UnboundLocalError":  "scope error group",
+    "RecursionError":     "recursion error group",
 }
 
 
@@ -51,15 +57,6 @@ class ErrorAnalyzer:
         for record in error_records:
             error_type = record.error_type
             summary[error_type] = summary.get(error_type, 0) + 1
-
-        return dict(sorted(summary.items(), key=lambda x: x[1], reverse=True))
-
-    def get_group_summary(self, error_records: List[ErrorRecord]) -> Dict[str, int]:
-        summary: Dict[str, int] = {}
-
-        for record in error_records:
-            group = record.error_group or ERROR_GROUPS.get(record.error_type, "other error group")
-            summary[group] = summary.get(group, 0) + 1
 
         return dict(sorted(summary.items(), key=lambda x: x[1], reverse=True))
 

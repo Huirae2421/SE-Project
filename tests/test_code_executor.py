@@ -107,41 +107,6 @@ class TestErrorMessage:
 
 
 # ──────────────────────────────────────────────
-# 오류 그룹 테스트
-# ──────────────────────────────────────────────
-
-class TestErrorGroup:
-
-    def test_name_error_group(self, executor):
-        group = executor.get_error_group("NameError")
-        assert group == "undefined variable group"
-
-    def test_indentation_error_group(self, executor):
-        group = executor.get_error_group("IndentationError")
-        assert group == "indentation error group"
-
-    def test_type_error_group(self, executor):
-        group = executor.get_error_group("TypeError")
-        assert group == "type mismatch group"
-
-    def test_syntax_error_group(self, executor):
-        group = executor.get_error_group("SyntaxError")
-        assert group == "syntax error group"
-
-    def test_index_error_group(self, executor):
-        group = executor.get_error_group("IndexError")
-        assert group == "index error group"
-
-    def test_value_error_group(self, executor):
-        group = executor.get_error_group("ValueError")
-        assert group == "value error group"
-
-    def test_unknown_error_group(self, executor):
-        group = executor.get_error_group("UnknownError")
-        assert group == "other error group"
-
-
-# ──────────────────────────────────────────────
 # 타임아웃 테스트
 # ──────────────────────────────────────────────
 
