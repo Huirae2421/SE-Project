@@ -4,14 +4,15 @@ dashboard_view.py: 대시보드 화면 구성
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QFrame, QGridLayout,
-    QScrollArea
+    QLabel, QFrame, QGridLayout
 )
-from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
 from ..controllers.app_controller import AppController
 from ..models.data_models import DashboardData
+from ..models.report_generator import describe_mccabe
+from . import styles
+from .i18n import tr
 
 
 # ──────────────────────────────────────────────
@@ -21,7 +22,6 @@ from ..models.data_models import DashboardData
 FONT_TITLE  = QFont("맑은 고딕", 18, QFont.Bold)
 FONT_LABEL  = QFont("맑은 고딕", 11)
 FONT_VALUE  = QFont("맑은 고딕", 13, QFont.Bold)
-FONT_BUTTON = QFont("맑은 고딕", 10)
 
 
 # ──────────────────────────────────────────────
@@ -59,15 +59,15 @@ class StatCard(QFrame):
     def set_value(self, value: str) -> None:
         self.value_label.setText(value)
 
+    def set_value_color(self, color: str) -> None:
+        self.value_label.setStyleSheet(f"color: {color};")
+
 
 # ──────────────────────────────────────────────
 # DashboardView
 # ──────────────────────────────────────────────
 
 class DashboardView(QWidget):
-
-    navigate_to_chart    = pyqtSignal()
-    navigate_to_settings = pyqtSignal()
 
     def __init__(self, controller: AppController):
         super().__init__()
@@ -88,7 +88,6 @@ class DashboardView(QWidget):
         layout.addWidget(self._build_feedback_section())
         layout.addLayout(self._build_folder_section())
         layout.addStretch()
-        layout.addLayout(self._build_nav_buttons())
 
     # ──────────────────────────────────────────────
     # 헤더
@@ -97,10 +96,10 @@ class DashboardView(QWidget):
     def _build_header(self) -> QHBoxLayout:
         layout = QHBoxLayout()
 
-        title = QLabel("CLAP 대시보드")
-        title.setFont(FONT_TITLE)
+        self.title_label = QLabel(tr("dash.title"))
+        self.title_label.setFont(FONT_TITLE)
 
-        layout.addWidget(title)
+        layout.addWidget(self.title_label)
         layout.addStretch()
         return layout
 
@@ -112,12 +111,29 @@ class DashboardView(QWidget):
         grid = QGridLayout()
         grid.setSpacing(12)
 
-        self.card_sessions     = StatCard("총 분석 횟수")
-        self.card_errors       = StatCard("총 오류 발생")
-        self.card_mccabe       = StatCard("평균 McCabe 점수")
-        self.card_clap         = StatCard("평균 CLAP 점수")
-        self.card_difficulty   = StatCard("현재 난이도")
-        self.card_top_error    = StatCard("가장 많은 오류")
+        self.card_sessions     = StatCard(tr("dash.card.sessions"))
+        self.card_errors       = StatCard(tr("dash.card.errors"))
+        self.card_mccabe       = StatCard(tr("dash.card.mccabe"))
+        self.card_clap         = StatCard(tr("dash.card.clap"))
+        self.card_difficulty   = StatCard(tr("dash.card.difficulty"))
+        self.card_top_error    = StatCard(tr("dash.card.toperror"))
+
+        # 초보자용 설명 (마우스를 올리면 표시)
+        self.card_sessions.setToolTip("지금까지 코드를 분석한 총 횟수예요.")
+        self.card_errors.setToolTip("분석 중 발생한 오류의 총 개수예요.")
+        self.card_mccabe.setToolTip(
+            "코드 안의 갈림길(if/for 등) 개수예요. 낮을수록 단순합니다.\n"
+            "10 이하: 단순 / 11~20: 주의 / 21 이상: 복잡(함수 분리 권장)"
+        )
+        self.card_clap.setToolTip(
+            "함수 길이·중첩 깊이까지 반영한 나만의 복잡도 점수예요.\n"
+            "내 평소 평균과 비교해 높고 낮음을 봅니다."
+        )
+        self.card_difficulty.setToolTip(
+            "오류 수·복잡도·풀이 시간을 종합한 값이에요.\n"
+            "남과 비교하는 게 아니라 내 평소 기록 대비로 해석합니다."
+        )
+        self.card_top_error.setToolTip("가장 자주 발생한 오류 유형이에요.")
 
         grid.addWidget(self.card_sessions,   0, 0)
         grid.addWidget(self.card_errors,     0, 1)
@@ -146,11 +162,12 @@ class DashboardView(QWidget):
 
         layout = QVBoxLayout(frame)
 
-        header = QLabel("최근 분석 피드백")
-        header.setFont(FONT_LABEL)
-        header.setStyleSheet("color: #0c5460; font-weight: bold;")
+        self.feedback_header = QLabel(tr("dash.feedback.header"))
+        self.feedback_header.setFont(FONT_LABEL)
+        self.feedback_header.setStyleSheet("color: #0c5460; font-weight: bold;")
+        header = self.feedback_header
 
-        self.feedback_label = QLabel("아직 분석된 코드가 없습니다.")
+        self.feedback_label = QLabel(tr("dash.feedback.empty"))
         self.feedback_label.setFont(FONT_LABEL)
         self.feedback_label.setWordWrap(True)
         self.feedback_label.setStyleSheet("color: #0c5460;")
@@ -167,40 +184,18 @@ class DashboardView(QWidget):
     def _build_folder_section(self) -> QVBoxLayout:
         layout = QVBoxLayout()
 
-        header = QLabel("감시 중인 폴더")
-        header.setFont(FONT_LABEL)
-        header.setStyleSheet("font-weight: bold; color: #495057;")
+        self.folder_header = QLabel(tr("dash.folder.header"))
+        self.folder_header.setFont(FONT_LABEL)
+        self.folder_header.setStyleSheet("font-weight: bold; color: #495057;")
+        header = self.folder_header
 
-        self.folder_label = QLabel("등록된 폴더가 없습니다.")
+        self.folder_label = QLabel(tr("dash.folder.empty"))
         self.folder_label.setFont(FONT_LABEL)
         self.folder_label.setStyleSheet("color: #6c757d;")
         self.folder_label.setWordWrap(True)
 
         layout.addWidget(header)
         layout.addWidget(self.folder_label)
-
-        return layout
-
-    # ──────────────────────────────────────────────
-    # 하단 내비게이션 버튼
-    # ──────────────────────────────────────────────
-
-    def _build_nav_buttons(self) -> QHBoxLayout:
-        layout = QHBoxLayout()
-
-        btn_chart = QPushButton("📊 차트 보기")
-        btn_chart.setFont(FONT_BUTTON)
-        btn_chart.setFixedHeight(36)
-        btn_chart.clicked.connect(self.navigate_to_chart.emit)
-
-        btn_settings = QPushButton("⚙️ 설정")
-        btn_settings.setFont(FONT_BUTTON)
-        btn_settings.setFixedHeight(36)
-        btn_settings.clicked.connect(self.navigate_to_settings.emit)
-
-        layout.addWidget(btn_chart)
-        layout.addWidget(btn_settings)
-        layout.addStretch()
 
         return layout
 
@@ -213,18 +208,38 @@ class DashboardView(QWidget):
 
         self.card_sessions.set_value(str(stats.total_sessions))
         self.card_errors.set_value(str(stats.total_errors))
-        self.card_mccabe.set_value(f"{stats.avg_mccabe_score:.1f}")
+        self.card_mccabe.set_value(
+            f"{stats.avg_mccabe_score:.1f} ({describe_mccabe(stats.avg_mccabe_score)})"
+        )
         self.card_clap.set_value(f"{stats.avg_clap_score:.1f}")
         self.card_difficulty.set_value(data.difficulty_score.label)
+        self.card_difficulty.set_value_color(
+            styles.difficulty_color(data.difficulty_score.label)
+        )
         self.card_top_error.set_value(stats.most_frequent_error)
 
         if data.latest_session:
             feedback = data.latest_session.ast_result.feedback_message
-            self.feedback_label.setText(feedback if feedback else "피드백 없음")
+            self.feedback_label.setText(feedback if feedback else "-")
         else:
-            self.feedback_label.setText("아직 분석된 코드가 없습니다.")
+            self.feedback_label.setText(tr("dash.feedback.empty"))
 
         if data.registered_folders:
             self.folder_label.setText("\n".join(data.registered_folders))
         else:
-            self.folder_label.setText("등록된 폴더가 없습니다.")
+            self.folder_label.setText(tr("dash.folder.empty"))
+
+    # ──────────────────────────────────────────────
+    # 언어 변경 시 텍스트 갱신
+    # ──────────────────────────────────────────────
+
+    def retranslate_ui(self) -> None:
+        self.title_label.setText(tr("dash.title"))
+        self.card_sessions.title_label.setText(tr("dash.card.sessions"))
+        self.card_errors.title_label.setText(tr("dash.card.errors"))
+        self.card_mccabe.title_label.setText(tr("dash.card.mccabe"))
+        self.card_clap.title_label.setText(tr("dash.card.clap"))
+        self.card_difficulty.title_label.setText(tr("dash.card.difficulty"))
+        self.card_top_error.title_label.setText(tr("dash.card.toperror"))
+        self.feedback_header.setText(tr("dash.feedback.header"))
+        self.folder_header.setText(tr("dash.folder.header"))

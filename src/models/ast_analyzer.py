@@ -19,9 +19,9 @@ CLAP_WEIGHTS = {
 }
 
 MCCABE_LABELS = {
-    "simple":  (0,  10,  "단순"),
-    "middle":  (11, 20,  "중간"),
-    "complex": (21, 999, "복잡"),
+    "simple":  (0,  10,  "simple"),
+    "middle":  (11, 20,  "moderate"),
+    "complex": (21, 999, "complex"),
 }
 
 NESTING_NODES = (
@@ -44,7 +44,7 @@ class ASTAnalyzer:
             return ASTResult(
                 file_path=file_path,
                 valid=False,
-                feedback_message=f"파일 읽기 실패: {e}"
+                feedback_message=f"Failed to read file: {e}"
             )
 
         try:
@@ -53,7 +53,7 @@ class ASTAnalyzer:
             return ASTResult(
                 file_path=file_path,
                 valid=False,
-                feedback_message=f"문법 오류로 분석 불가: {e}"
+                feedback_message=f"Syntax error, analysis unavailable: {e}"
             )
 
         line_count = len(source.splitlines())
@@ -81,16 +81,16 @@ class ASTAnalyzer:
         try:
             results = cc_visit(source)
             if not results:
-                return 0.0, "단순"
+                return 0.0, "simple"
             score = max(block.complexity for block in results)
         except Exception:
-            return 0.0, "단순"
+            return 0.0, "simple"
 
         for _, (lo, hi, label) in MCCABE_LABELS.items():
             if lo <= score <= hi:
                 return float(score), label
 
-        return float(score), "복잡"
+        return float(score), "complex"
 
     # ──────────────────────────────────────────────
     # CLAP 복잡도 공식
@@ -150,17 +150,17 @@ class ASTAnalyzer:
         messages = []
 
         if cc.nesting_depth >= 3:
-            messages.append("중첩 깊이가 높아 코드 가독성이 낮습니다.")
+            messages.append("High nesting depth reduces code readability.")
         if cc.function_length > 20:
-            messages.append("함수 분리를 권장합니다.")
+            messages.append("Consider splitting long functions.")
         if cc.loop_count >= 3:
-            messages.append("반복문 사용 빈도가 높습니다.")
+            messages.append("High frequency of loop usage detected.")
         if cc.branch_count >= 5:
-            messages.append("조건문이 과도하게 중첩되어 있습니다.")
+            messages.append("Excessive branching detected.")
         if mccabe_score >= 21:
-            messages.append("McCabe 복잡도가 높습니다. 리팩토링을 권장합니다.")
+            messages.append("High McCabe complexity. Refactoring recommended.")
 
         if not messages:
-            messages.append("코드 구조가 양호합니다.")
+            messages.append("Code structure looks good.")
 
         return " ".join(messages)

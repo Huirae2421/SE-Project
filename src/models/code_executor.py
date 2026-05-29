@@ -4,8 +4,26 @@ code_executor.py: Python 코드 실행 및 오류 수집
 
 import subprocess
 import re
+import sys
+import shutil
 import time
 from .data_models import ExecutionResult
+
+
+# ──────────────────────────────────────────────
+# 파이썬 실행기 결정
+# ──────────────────────────────────────────────
+
+def resolve_python() -> str:
+    """사용자 코드를 실행할 파이썬 인터프리터를 찾는다.
+
+    개발 환경에서는 현재 실행 중인 파이썬을 쓰고, exe(PyInstaller)로
+    패키징된 경우에는 sys.executable 이 앱 자신을 가리키므로 시스템에
+    설치된 파이썬을 PATH 에서 찾아 사용한다.
+    """
+    if not getattr(sys, "frozen", False):
+        return sys.executable
+    return shutil.which("python") or shutil.which("python3") or "python"
 
 
 # ──────────────────────────────────────────────
@@ -21,16 +39,13 @@ SUPPORTED_ERRORS = frozenset({
     "IndentationError",
     "IndexError",
     "ValueError",
+    "AttributeError",
+    "KeyError",
+    "ZeroDivisionError",
+    "ModuleNotFoundError",
+    "UnboundLocalError",
+    "RecursionError",
 })
-
-ERROR_GROUPS = {
-    "NameError":       "변수 미정의 그룹",
-    "IndentationError": "들여쓰기 오류 그룹",
-    "TypeError":       "타입 불일치 그룹",
-    "SyntaxError":     "문법 오류 그룹",
-    "IndexError":      "인덱스 오류 그룹",
-    "ValueError":      "값 오류 그룹",
-}
 
 
 # ──────────────────────────────────────────────
@@ -41,15 +56,18 @@ class CodeExecutor:
 
     def __init__(self, timeout: float = DEFAULT_TIMEOUT):
         self.timeout = timeout
+        self.python_cmd = resolve_python()
 
     def execute(self, file_path: str) -> ExecutionResult:
         start = time.perf_counter()
 
         try:
             proc = subprocess.run(
-                ["python", file_path],
+                [self.python_cmd, file_path],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=self.timeout
             )
             elapsed = time.perf_counter() - start
@@ -72,9 +90,9 @@ class CodeExecutor:
             elapsed = time.perf_counter() - start
             return ExecutionResult(
                 file_path=file_path,
-                stderr="TimeoutExpired: 실행 시간 초과",
+                stderr="TimeoutExpired: execution time limit exceeded",
                 error_type="TimeoutExpired",
-                error_message="실행 시간 초과",
+                error_message="execution time limit exceeded",
                 elapsed_seconds=round(elapsed, 4),
                 timed_out=True,
                 success=False
@@ -122,10 +140,3 @@ class CodeExecutor:
                 return line.strip()
 
         return ""
-
-    # ──────────────────────────────────────────────
-    # 오류 그룹 반환
-    # ──────────────────────────────────────────────
-
-    def get_error_group(self, error_type: str) -> str:
-        return ERROR_GROUPS.get(error_type, "기타 오류 그룹")

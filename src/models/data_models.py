@@ -44,7 +44,7 @@ class ASTResult:
     function_count: int = 0
     clap_components: ClapComponents = field(default_factory=ClapComponents)
     mccabe_score: float = 0.0
-    mccabe_label: str = "단순"
+    mccabe_label: str = "simple"
     feedback_message: str = ""
 
 # ──────────────────────────────────────────────
@@ -68,7 +68,7 @@ class ErrorRecord:
 @dataclass
 class DifficultyScore:
     score: float = 0.0
-    label: str = "데이터 수집 중" 
+    label: str = "collecting data" 
     is_relative: bool = False
     normalized_error: float = 0.0
     normalized_complexity: float = 0.0
@@ -107,7 +107,7 @@ class HistoricalSession:
     mccabe_score: float = 0.0
     elapsed_seconds: float = 0.0
     difficulty_score: float = 0.0
-    difficulty_label: str = "데이터 수집 중"
+    difficulty_label: str = "collecting data"
 
 
 # ──────────────────────────────────────────────
@@ -144,7 +144,7 @@ class SummaryStats:
     avg_mccabe_score: float = 0.0
     avg_clap_score: float = 0.0
     avg_elapsed_seconds: float = 0.0
-    most_frequent_error: str = "없음"
+    most_frequent_error: str = "none"
 
 
 @dataclass

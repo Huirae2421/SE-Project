@@ -2,6 +2,7 @@
 file_watcher.py: 폴더 감시 및 파일 변경 감지
 """
 
+import os
 import time
 import logging
 from typing import Callable, Dict, Optional
@@ -22,9 +23,16 @@ DEBOUNCE_SECONDS = 1.0
 
 class PythonFileHandler(FileSystemEventHandler):
 
-    def __init__(self, on_file_changed: Callable[[str], None]):
+    def __init__(
+        self,
+        on_file_changed: Callable[[str], None],
+        watched_path: Optional[str] = None,
+        on_folder_removed: Optional[Callable[[str], None]] = None,
+    ):
         super().__init__()
         self.on_file_changed = on_file_changed
+        self.watched_path = watched_path
+        self.on_folder_removed = on_folder_removed
         self._last_event_times: Dict[str, float] = {}
 
     def on_modified(self, event: FileModifiedEvent) -> None:
@@ -42,6 +50,15 @@ class PythonFileHandler(FileSystemEventHandler):
         self._last_event_times[event.src_path] = now
         self.on_file_changed(event.src_path)
 
+    def on_deleted(self, event) -> None:
+        # 감시 중인 폴더(루트)가 통째로 삭제되면 알린다
+        if not (self.on_folder_removed and self.watched_path):
+            return
+        if not event.is_directory:
+            return
+        if os.path.normpath(event.src_path) == os.path.normpath(self.watched_path):
+            self.on_folder_removed(self.watched_path)
+
 
 # ──────────────────────────────────────────────
 # FileWatcher
@@ -49,8 +66,13 @@ class PythonFileHandler(FileSystemEventHandler):
 
 class FileWatcher:
 
-    def __init__(self, on_file_changed: Callable[[str], None]):
+    def __init__(
+        self,
+        on_file_changed: Callable[[str], None],
+        on_folder_removed: Optional[Callable[[str], None]] = None,
+    ):
         self.on_file_changed = on_file_changed
+        self.on_folder_removed = on_folder_removed
         self._observers: Dict[str, Observer] = {}
 
     # ──────────────────────────────────────────────
@@ -62,7 +84,11 @@ class FileWatcher:
             return True
 
         try:
-            handler = PythonFileHandler(self.on_file_changed)
+            handler = PythonFileHandler(
+                self.on_file_changed,
+                watched_path=folder_path,
+                on_folder_removed=self.on_folder_removed,
+            )
             observer = Observer()
             observer.schedule(handler, folder_path, recursive=True)
             observer.start()
